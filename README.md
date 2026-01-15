@@ -12,7 +12,19 @@ to instance- and semantic-aware nuclei segmentation with GeoJSON export.
 
 | Project ID | Start Day | Name | Dataset | Main Goal | Dr. Gu Split | Your Deliverables |
 |----------|----------|------|--------|-----------|-------------|------------------|
-| **GU001** | 11/25/25 | Kidney: Papillary vs ccRCC | DHMC Kidney | Classification pipeline | 84/21 train/val each + 45/398 test | Split table, scripts, baseline model, slides |
+| **GU001** | 11/25/25 | Kidney: Papillary vs ccRCC | DHMC Kidney | Classification pipeline | ## Data Split (Dr. Gu)
+
+**Papillary RCC**
+- 84 slides → Training
+- 21 slides → Validation
+- 45 slides → Testing
+
+**Clear Cell RCC (ccRCC)**
+- 105 slides → Training + Validation (84 / 21 split)
+- 398 slides → Testing
+
+Random sampling is performed with a fixed seed to ensure reproducibility.
+| Split table, scripts, baseline model, slides |
 | **GU002** | 11/25/25 | Lung: Solid vs Acinar | DHMC Lung | Pattern classification | Solid 28/8/15; Acinar 28/8/23 | Patch pipeline, baseline results, slides |
 | **GU003** | 11/25/25 | WSI StarDist + GeoJSON | Lung WSI | Nuclei segmentation → GeoJSON | 1 WSI only | StarDist results, GeoJSON export attempt, error logs, GitHub repo, slides |
 | **GU004** | 12/16/25 | WSI CellSAM + GeoJSON | Lung WSI | Generalist nuclei segmentation → GeoJSON (baseline comparison) | 1 WSI only (same as GU003) | CellSAM results, GeoJSON export, StarDist vs CellSAM visual comparison, inference notes, GitHub repo, slides |
