@@ -10,25 +10,15 @@ to instance- and semantic-aware nuclei segmentation with GeoJSON export.
 
 ## Project Overview
 
+## Project Overview
+
 | Project ID | Start Day | Name | Dataset | Main Goal | Dr. Gu Split | Your Deliverables |
-|----------|----------|------|--------|-----------|-------------|------------------|
-| **GU001** | 11/25/25 | Kidney: Papillary vs ccRCC | DHMC Kidney | Classification pipeline | ## Data Split (Dr. Gu)
-
-**Papillary RCC**
-- 84 slides → Training
-- 21 slides → Validation
-- 45 slides → Testing
-
-**Clear Cell RCC (ccRCC)**
-- 105 slides → Training + Validation (84 / 21 split)
-- 398 slides → Testing
-
-Random sampling is performed with a fixed seed to ensure reproducibility.
-| Split table, scripts, baseline model, slides |
-| **GU002** | 11/25/25 | Lung: Solid vs Acinar | DHMC Lung | Pattern classification | Solid 28/8/15; Acinar 28/8/23 | Patch pipeline, baseline results, slides |
+|------------|-----------|------|---------|-----------|--------------|-------------------|
+| **GU001** | 11/25/25 | Kidney: Papillary vs ccRCC | DHMC Kidney | Classification pipeline | **For Papillary RCC:**<br>84 slides → Training<br>21 slides → Validation<br>45 slides → Testing<br><br>**For Clear Cell RCC:**<br>105 slides → Training + Validation (84 / 21)<br>398 slides → Testing | Split table, scripts, baseline model, slides |
+| **GU002** | 11/25/25 | Lung: Solid vs Acinar | DHMC Lung | Pattern classification | Solid 28/8/15; Acinar 28/8/23 (Training / Validation / Test) | Patch pipeline, baseline results, slides |
 | **GU003** | 11/25/25 | WSI StarDist + GeoJSON | Lung WSI | Nuclei segmentation → GeoJSON | 1 WSI only | StarDist results, GeoJSON export attempt, error logs, GitHub repo, slides |
 | **GU004** | 12/16/25 | WSI CellSAM + GeoJSON | Lung WSI | Generalist nuclei segmentation → GeoJSON (baseline comparison) | 1 WSI only (same as GU003) | CellSAM results, GeoJSON export, StarDist vs CellSAM visual comparison, inference notes, GitHub repo, slides |
-| **GU005** | 01/03/26 | WSI ClassPose + Semantic GeoJSON | Lung WSI | Semantic-aware nuclei segmentation (instance + cell type) → GeoJSON | 1 WSI only (same as GU003/GU004) | ClassPose inference results, cell-type–annotated GeoJSON, centroid alignment checks, CellSAM vs ClassPose qualitative comparison, export schema notes, GitHub repo, slides |
+| **GU005** | Jan 3rd 2026 | WSI ClassPose + Semantic GeoJSON | Lung WSI | Semantic-aware nuclei segmentation (instance + cell type) → GeoJSON | 1 WSI only (same as GU003 / GU004) | ClassPose inference results, cell-type–annotated GeoJSON, centroid alignment checks, CellSAM vs ClassPose qualitative comparison, export schema notes, GitHub repo, slides |
 
 ---
 
