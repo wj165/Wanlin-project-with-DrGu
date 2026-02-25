@@ -1,10 +1,8 @@
+
 import json
 import numpy as np
 import pandas as pd
-from shapely.geometry import shape
-from shapely.geometry import Point
-from shapely.ops import unary_union
-
+from shapely.geometry import shape, Point
 
 class CellFeatureExtractor:
 
@@ -17,11 +15,6 @@ class CellFeatureExtractor:
         with open(geojson_path) as f:
             self.data = json.load(f)
 
-    # ----------------------------------------------------
-    # Main
-    # ----------------------------------------------------
-    
-    
     def compute_all_features(self):
 
         records = []
@@ -29,25 +22,12 @@ class CellFeatureExtractor:
         for i, feature in enumerate(self.data["features"]):
 
             try:
-                geom = shape(feature["geometry"])
-            except:
-                continue
-
-            # ---- Handle MultiPolygon ----
-            if geom.geom_type == "MultiPolygon":
-                if len(geom.geoms) == 0:
+                poly = shape(feature["geometry"])
+                if not poly.is_valid or poly.area == 0:
                     continue
-                poly = max(geom.geoms, key=lambda p: p.area)
-            elif geom.geom_type == "Polygon":
-                poly = geom
-            else:
-                continue
-
-            if poly.is_empty or not poly.is_valid:
-                continue
-
-            coords = list(poly.exterior.coords)
-            if len(coords) < 4:
+                if len(poly.exterior.coords) < 4:
+                    continue
+            except:
                 continue
 
             props = feature.get("properties", {})
@@ -61,25 +41,58 @@ class CellFeatureExtractor:
 
             record["area"] = area
             record["perimeter"] = perimeter
-            record["equivalent_diameter"] = (4 * area / 3.1415926) ** 0.5
+            record["equivalent_diameter"] = np.sqrt(4 * area / np.pi)
 
-            # ---- PCA orientation ----
-            coords_np = np.array(coords)
-            coords_centered = coords_np - coords_np.mean(axis=0)
-            cov = np.cov(coords_centered.T)
+            minx, miny, maxx, maxy = poly.bounds
+            width = maxx - minx
+            height = maxy - miny
 
+            major_axis = max(width, height)
+            minor_axis = min(width, height)
+
+            record["major_axis_length"] = major_axis
+            record["minor_axis_length"] = minor_axis
+            record["aspect_ratio"] = major_axis / (minor_axis + 1e-8)
+            record["elongation"] = 1 - (minor_axis / (major_axis + 1e-8))
+
+            record["circularity"] = (4 * np.pi * area) / (perimeter**2 + 1e-8)
+            record["compactness"] = perimeter**2 / (area + 1e-8)
+            record["solidity"] = area / (poly.convex_hull.area + 1e-8)
+            record["extent"] = area / ((width * height) + 1e-8)
+            record["eccentricity"] = np.sqrt(
+                1 - (minor_axis**2 / (major_axis**2 + 1e-8))
+            )
+
+            # Stable SVD orientation
+            coords = np.array(poly.exterior.coords)[:-1]
+            coords_centered = coords - coords.mean(axis=0)
             try:
-                eigvals, eigvecs = np.linalg.eig(cov)
-                largest_index = np.argmax(eigvals)
-                principal_vector = eigvecs[:, largest_index]
-                orientation = np.arctan2(principal_vector[1], principal_vector[0])
+                _, _, vh = np.linalg.svd(coords_centered)
+                principal_axis = vh[0]
+                orientation = np.arctan2(principal_axis[1], principal_axis[0])
             except:
                 orientation = 0
 
             record["orientation"] = orientation
 
+            centroid = poly.centroid
+            record["centroid_x"] = centroid.x
+            record["centroid_y"] = centroid.y
+            record["centroid_x_norm"] = centroid.x / self.patch_width
+            record["centroid_y_norm"] = centroid.y / self.patch_height
+
+            dist = centroid.distance(self.patch_center)
+            max_dist = np.sqrt((self.patch_width/2)**2 + (self.patch_height/2)**2)
+            record["distance_to_center_norm"] = dist / max_dist
+
+            record["perimeter_area_ratio"] = perimeter / (area + 1e-8)
+
+            hull = poly.convex_hull
+            record["convex_hull_area"] = hull.area
+            record["convex_hull_perimeter"] = hull.length
+            record["convexity_ratio"] = hull.length / (perimeter + 1e-8)
+            record["boundary_roughness"] = perimeter / (hull.length + 1e-8)
+
             records.append(record)
 
         return pd.DataFrame(records)
-def save_csv(self, df, output_path):
-        df.to_csv(output_path, index=False)
