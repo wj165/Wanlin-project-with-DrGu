@@ -24,7 +24,23 @@ class CellFeatureExtractor:
 
         records = []
 
+        
         for i, feature in enumerate(self.data["features"]):
+
+            try:
+                poly = shape(feature["geometry"])
+            except:
+                continue
+
+            if poly.is_empty or not poly.is_valid:
+                continue
+
+            if not hasattr(poly, "exterior"):
+                continue
+
+            if len(poly.exterior.coords) < 4:
+                continue
+
             try:
                 poly = shape(feature["geometry"])
                 if not poly.is_valid or poly.is_empty:
