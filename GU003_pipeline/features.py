@@ -21,22 +21,29 @@ class CellFeatureExtractor:
     # Main
     # ----------------------------------------------------
     
+    
     def compute_all_features(self):
 
         records = []
 
         for i, feature in enumerate(self.data["features"]):
 
-            # ---- Safe geometry creation ----
             try:
-                poly = shape(feature["geometry"])
+                geom = shape(feature["geometry"])
             except:
                 continue
 
-            if poly.is_empty or not poly.is_valid:
+            # ---- Handle MultiPolygon ----
+            if geom.geom_type == "MultiPolygon":
+                if len(geom.geoms) == 0:
+                    continue
+                poly = max(geom.geoms, key=lambda p: p.area)
+            elif geom.geom_type == "Polygon":
+                poly = geom
+            else:
                 continue
 
-            if not hasattr(poly, "exterior"):
+            if poly.is_empty or not poly.is_valid:
                 continue
 
             coords = list(poly.exterior.coords)
@@ -49,9 +56,6 @@ class CellFeatureExtractor:
             record["patch_id"] = props.get("patch_id", "unknown")
             record["cell_id"] = i
 
-            # ==============================
-            # Basic geometry
-            # ==============================
             area = poly.area
             perimeter = poly.length
 
@@ -59,9 +63,7 @@ class CellFeatureExtractor:
             record["perimeter"] = perimeter
             record["equivalent_diameter"] = (4 * area / 3.1415926) ** 0.5
 
-            # ==============================
-            # PCA Orientation
-            # ==============================
+            # ---- PCA orientation ----
             coords_np = np.array(coords)
             coords_centered = coords_np - coords_np.mean(axis=0)
             cov = np.cov(coords_centered.T)
