@@ -20,13 +20,14 @@ class CellFeatureExtractor:
     # ----------------------------------------------------
     # Main
     # ----------------------------------------------------
+    
     def compute_all_features(self):
 
         records = []
 
-        
         for i, feature in enumerate(self.data["features"]):
 
+            # ---- Safe geometry creation ----
             try:
                 poly = shape(feature["geometry"])
             except:
@@ -38,25 +39,14 @@ class CellFeatureExtractor:
             if not hasattr(poly, "exterior"):
                 continue
 
-            if len(poly.exterior.coords) < 4:
+            coords = list(poly.exterior.coords)
+            if len(coords) < 4:
                 continue
 
-            try:
-                poly = shape(feature["geometry"])
-                if not poly.is_valid or poly.is_empty:
-                    continue
-                if len(poly.exterior.coords) < 4:
-                    continue
-            except:
-                continue
-
-
-            poly = shape(feature["geometry"])
-            props = feature["properties"]
-
+            props = feature.get("properties", {})
             record = {}
 
-            record["patch_id"] = props["patch_id"]
+            record["patch_id"] = props.get("patch_id", "unknown")
             record["cell_id"] = i
 
             # ==============================
@@ -67,83 +57,27 @@ class CellFeatureExtractor:
 
             record["area"] = area
             record["perimeter"] = perimeter
-            record["equivalent_diameter"] = np.sqrt(4 * area / np.pi)
+            record["equivalent_diameter"] = (4 * area / 3.1415926) ** 0.5
 
             # ==============================
-            # Axis / ratio
+            # PCA Orientation
             # ==============================
-            minx, miny, maxx, maxy = poly.bounds
-            major_axis = max(maxx - minx, maxy - miny)
-            minor_axis = min(maxx - minx, maxy - miny)
-
-            record["major_axis_length"] = major_axis
-            record["minor_axis_length"] = minor_axis
-
-            aspect_ratio = major_axis / (minor_axis + 1e-8)
-            record["aspect_ratio"] = aspect_ratio
-            record["elongation"] = 1 - (minor_axis / (major_axis + 1e-8))
-
-            # ==============================
-            # Shape descriptors
-            # ==============================
-            circularity = (4 * np.pi * area) / (perimeter**2 + 1e-8)
-            record["circularity"] = circularity
-
-            record["compactness"] = perimeter**2 / (area + 1e-8)
-            record["solidity"] = area / (poly.convex_hull.area + 1e-8)
-            record["extent"] = area / ((major_axis * minor_axis) + 1e-8)
-            record["eccentricity"] = np.sqrt(
-                1 - (minor_axis**2 / (major_axis**2 + 1e-8))
-            )
-
-            # ==============================
-            # PCA-based orientation
-            # ==============================
-            coords = np.array(poly.exterior.coords)
-            coords_centered = coords - coords.mean(axis=0)
+            coords_np = np.array(coords)
+            coords_centered = coords_np - coords_np.mean(axis=0)
             cov = np.cov(coords_centered.T)
-            eigvals, eigvecs = np.linalg.eig(cov)
-            largest_index = np.argmax(eigvals)
-            principal_vector = eigvecs[:, largest_index]
-            orientation = np.arctan2(principal_vector[1], principal_vector[0])
+
+            try:
+                eigvals, eigvecs = np.linalg.eig(cov)
+                largest_index = np.argmax(eigvals)
+                principal_vector = eigvecs[:, largest_index]
+                orientation = np.arctan2(principal_vector[1], principal_vector[0])
+            except:
+                orientation = 0
+
             record["orientation"] = orientation
-
-            # ==============================
-            # Spatial features
-            # ==============================
-            centroid = poly.centroid
-
-            record["centroid_x"] = centroid.x
-            record["centroid_y"] = centroid.y
-
-            record["centroid_x_norm"] = centroid.x / self.patch_width
-            record["centroid_y_norm"] = centroid.y / self.patch_height
-
-            dist = centroid.distance(self.patch_center)
-            max_dist = np.sqrt(
-                (self.patch_width / 2)**2 +
-                (self.patch_height / 2)**2
-            )
-
-            record["distance_to_center_norm"] = dist / max_dist
-
-            # ==============================
-            # Boundary / complexity
-            # ==============================
-            record["perimeter_area_ratio"] = perimeter / (area + 1e-8)
-
-            hull = poly.convex_hull
-            record["convex_hull_area"] = hull.area
-            record["convex_hull_perimeter"] = hull.length
-            record["convexity_ratio"] = hull.length / (perimeter + 1e-8)
-            record["boundary_roughness"] = perimeter / (hull.length + 1e-8)
 
             records.append(record)
 
         return pd.DataFrame(records)
-
-    # ----------------------------------------------------
-    # Save
-    # ----------------------------------------------------
-    def save_csv(self, df, output_path):
+def save_csv(self, df, output_path):
         df.to_csv(output_path, index=False)
