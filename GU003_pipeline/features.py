@@ -71,7 +71,17 @@ class CellFeatureExtractor:
                 1 - (minor_axis**2 / (major_axis**2 + 1e-8))
             )
 
-            record["orientation"] = 0  # placeholder if needed later
+            # ==============================
+            # PCA-based orientation
+            # ==============================
+            coords = np.array(poly.exterior.coords)
+            coords_centered = coords - coords.mean(axis=0)
+            cov = np.cov(coords_centered.T)
+            eigvals, eigvecs = np.linalg.eig(cov)
+            largest_index = np.argmax(eigvals)
+            principal_vector = eigvecs[:, largest_index]
+            orientation = np.arctan2(principal_vector[1], principal_vector[0])
+            record["orientation"] = orientation
 
             # ==============================
             # Spatial features
