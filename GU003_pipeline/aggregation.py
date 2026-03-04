@@ -1,6 +1,7 @@
+
 import pandas as pd
 import numpy as np
-from scipy.stats import skew, kurtosis
+from scipy.stats import skew
 
 
 def aggregate(cell_df, output_dir):
@@ -42,51 +43,10 @@ def aggregate(cell_df, output_dir):
         patch_features[f"{col}_mean"] = np.mean(values)
         patch_features[f"{col}_std"] = np.std(values)
         patch_features[f"{col}_skewness"] = skew(values)
-        patch_features[f"{col}_kurtosis"] = kurtosis(values)
 
-    # ------------------------------
-    # Convert to DataFrame
-    # ------------------------------
     patch_df = pd.DataFrame([patch_features])
 
     output_path = f"{output_dir}/{patch_id}_patch.csv"
     patch_df.to_csv(output_path, index=False)
-
-    return patch_df
-
-
-import numpy as np
-from scipy.stats import skew, kurtosis
-
-def add_orientation_stats(patch_df, cell_df):
-    '''
-    Replace orientation statistics in patch_df using cell-level orientation values.
-    patch_df must contain patch_id.
-    cell_df must contain patch_id and orientation column.
-    '''
-
-    orientation_stats = (
-        cell_df.groupby("patch_id")["orientation"]
-        .agg([
-            ("orientation_mean", np.mean),
-            ("orientation_std", np.std),
-            ("orientation_skewness", skew),
-            ("orientation_kurtosis", kurtosis)
-        ])
-        .reset_index()
-    )
-
-    patch_df = patch_df.set_index("patch_id")
-    orientation_stats = orientation_stats.set_index("patch_id")
-
-    for col in [
-        "orientation_mean",
-        "orientation_std",
-        "orientation_skewness",
-        "orientation_kurtosis"
-    ]:
-        patch_df[col] = orientation_stats[col]
-
-    patch_df = patch_df.reset_index()
 
     return patch_df
