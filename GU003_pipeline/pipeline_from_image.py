@@ -63,6 +63,11 @@ class GU003PipelineFromImage:
 
             cell_df = extractor.compute_all_features()
 
+            # Skip patches with no nuclei detected
+            if cell_df.empty:
+                print(f"WARNING: no nuclei detected in {patch_id}")
+                continue
+
             patch_df = aggregate(cell_df, self.output_dir)
 
             all_rows.append(patch_df)
