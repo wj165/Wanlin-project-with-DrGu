@@ -27,6 +27,9 @@ class CellSegmenter:
         self.prob_thresh = prob_thresh
         self.nms_thresh = nms_thresh
 
+    # --------------------------------------------------
+    # Compute scale factor dynamically
+    # --------------------------------------------------
     def compute_scale_factor(self):
 
         if self.native_mag is None:
@@ -34,6 +37,9 @@ class CellSegmenter:
 
         return self.target_mag / self.native_mag
 
+    # --------------------------------------------------
+    # Resize if needed
+    # --------------------------------------------------
     def resize_if_needed(self, image):
 
         scale_factor = self.compute_scale_factor()
@@ -55,6 +61,9 @@ class CellSegmenter:
 
         return resized
 
+    # --------------------------------------------------
+    # Run segmentation
+    # --------------------------------------------------
     def run(self, image):
 
         image = self.resize_if_needed(image)
@@ -76,31 +85,29 @@ class CellSegmenter:
 
         return labels_filtered
 
+    # --------------------------------------------------
+    # Remove small nuclei
+    # --------------------------------------------------
     def filter_small_objects(self, labels):
 
         filtered = np.zeros_like(labels, dtype=np.int32)
         new_id = 1
 
-        regions = regionprops(labels)
-
-        for region in regions:
-
+        for region in regionprops(labels):
             if region.area >= self.min_area:
-
-                coords = region.coords
-                filtered[coords[:, 0], coords[:, 1]] = new_id
+                filtered[labels == region.label] = new_id
                 new_id += 1
 
         return filtered
 
+    # --------------------------------------------------
+    # Convert to GeoJSON
+    # --------------------------------------------------
     def labels_to_geojson(self, labels, patch_id, output_dir):
 
         features = []
 
-        unique_labels = np.unique(labels)
-        unique_labels = unique_labels[unique_labels != 0]
-
-        for lab in unique_labels:
+        for lab in range(1, labels.max() + 1):
 
             mask = labels == lab
             contours = find_contours(mask.astype(float), 0.5)
@@ -117,7 +124,7 @@ class CellSegmenter:
                     },
                     "properties": {
                         "patch_id": patch_id,
-                        "cell_label": int(lab)
+                        "cell_label": lab
                     }
                 }
 
