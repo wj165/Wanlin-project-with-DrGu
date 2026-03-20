@@ -1,4 +1,3 @@
-
 import json
 import numpy as np
 import pandas as pd
@@ -15,7 +14,21 @@ class CellFeatureExtractor:
         with open(geojson_path) as f:
             self.data = json.load(f)
 
+    def polygon_to_mask(self, poly):
+        import cv2
+        mask = np.zeros((self.patch_height, self.patch_width), dtype=np.uint8)
+        coords = np.array(poly.exterior.coords).astype(np.int32)
+        cv2.fillPoly(mask, [coords], 1)
+        return mask
+
     def compute_all_features(self):
+
+        from radiomics import featureextractor
+        import SimpleITK as sitk
+
+        extractor = featureextractor.RadiomicsFeatureExtractor()
+        extractor.disableAllFeatures()
+        extractor.enableFeatureClassByName("shape2D")
 
         records = []
 
@@ -63,7 +76,6 @@ class CellFeatureExtractor:
                 1 - (minor_axis**2 / (major_axis**2 + 1e-8))
             )
 
-            # Stable SVD orientation
             coords = np.array(poly.exterior.coords)[:-1]
             coords_centered = coords - coords.mean(axis=0)
             try:
@@ -92,6 +104,25 @@ class CellFeatureExtractor:
             record["convex_hull_perimeter"] = hull.length
             record["convexity_ratio"] = hull.length / (perimeter + 1e-8)
             record["boundary_roughness"] = perimeter / (hull.length + 1e-8)
+
+            # =========================
+            # PyRadiomics (shape only)
+            # =========================
+            try:
+                mask = self.polygon_to_mask(poly)
+                sitk_mask = sitk.GetImageFromArray(mask)
+
+                dummy_image = sitk.GetImageFromArray(mask.astype(np.float32))
+
+                result = extractor.execute(dummy_image, sitk_mask)
+
+                for k, v in result.items():
+                    if "diagnostics" in k:
+                        continue
+                    record[f"rad_{k}"] = v
+
+            except:
+                pass
 
             records.append(record)
 
