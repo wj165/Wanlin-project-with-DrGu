@@ -35,3 +35,39 @@ Wanlin-DrGu-CellSegmentation/
 ├── common/
 ├── docs/
 └── README.md
+
+
+
+Each GU00X-* folder contains code, notes, and results specific to that project.
+
+common/ is reserved for shared utilities (e.g., patch extraction, visualization, GeoJSON helpers).
+
+docs/ contains cross-project documentation and pipeline summaries.
+
+Scope and Notes
+
+GU003–GU005 are intentionally restricted to 1 WSI only, following Dr. Gu’s guidance,
+and are designed for method comparison and pipeline validation, not performance benchmarking.
+
+GU006 extends these pipelines into downstream modeling by focusing on feature engineering
+and aggregation strategies rather than segmentation itself.
+
+The focus of later GU projects progressively shifts from:
+
+instance segmentation (StarDist),
+
+to generalist nuclei segmentation (CellSAM),
+
+to semantic-aware nuclei segmentation (ClassPose),
+
+to feature-based modeling with radiomics and representation learning (GU006). https://pyradiomics.readthedocs.io/en/latest/
+
+GeoJSON export compatibility and downstream usability are treated as first-order deliverables.
+
+Status
+
+All projects are organized for reproducibility, comparison, and discussion.
+Results are intended for internal review, method evaluation, and presentation slides.
+
+
+
