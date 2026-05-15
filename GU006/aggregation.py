@@ -26,7 +26,7 @@ class PatchFeatureAggregator:
         self.random_state = random_state
 
     # =====================================================
-    # load all cell feature csv
+    # load all cell csv
     # =====================================================
 
     def load_all_cells(self):
@@ -46,7 +46,21 @@ class PatchFeatureAggregator:
 
             try:
 
+                # -----------------------------------------
+                # skip empty files
+                # -----------------------------------------
+
+                if os.path.getsize(csv_path) == 0:
+                    continue
+
                 df = pd.read_csv(csv_path)
+
+                # -----------------------------------------
+                # skip empty dataframe
+                # -----------------------------------------
+
+                if df.shape[0] == 0:
+                    continue
 
                 dfs.append(df)
 
@@ -58,7 +72,7 @@ class PatchFeatureAggregator:
         if len(dfs) == 0:
 
             raise ValueError(
-                "No cell feature CSV found"
+                "No valid cell feature CSV found"
             )
 
         all_df = pd.concat(
@@ -69,7 +83,7 @@ class PatchFeatureAggregator:
         return all_df
 
     # =====================================================
-    # UMAP aggregation
+    # aggregate
     # =====================================================
 
     def aggregate(self):
@@ -81,7 +95,7 @@ class PatchFeatureAggregator:
         )
 
         # =================================================
-        # metadata columns
+        # metadata
         # =================================================
 
         metadata_cols = [
@@ -103,7 +117,7 @@ class PatchFeatureAggregator:
         )
 
         # =================================================
-        # group by patch
+        # group patches
         # =================================================
 
         grouped = df.groupby(
@@ -121,24 +135,65 @@ class PatchFeatureAggregator:
                 ].values
 
                 # -----------------------------------------
+                # remove nan / inf
+                # -----------------------------------------
+
+                X = np.nan_to_num(
+                    X,
+                    nan=0,
+                    posinf=0,
+                    neginf=0
+                )
+
+                # -----------------------------------------
                 # skip tiny patches
                 # -----------------------------------------
 
-                if X.shape[0] < 2:
+                n_cells = X.shape[0]
+
+                if n_cells < 5:
                     continue
+
+                # -----------------------------------------
+                # safe umap params
+                # -----------------------------------------
+
+                safe_components = min(
+                    self.n_components,
+                    n_cells - 2
+                )
+
+                if safe_components < 2:
+                    continue
+
+                safe_neighbors = min(
+                    10,
+                    n_cells - 1
+                )
 
                 # -----------------------------------------
                 # UMAP
                 # -----------------------------------------
 
                 reducer = UMAP(
-                    n_components=self.n_components,
+
+                    n_components=safe_components,
+
+                    n_neighbors=safe_neighbors,
+
                     random_state=self.random_state
                 )
 
                 embedding = reducer.fit_transform(
                     X
                 )
+
+                # -----------------------------------------
+                # skip invalid embedding
+                # -----------------------------------------
+
+                if embedding.shape[0] == 0:
+                    continue
 
                 # -----------------------------------------
                 # aggregation
@@ -148,15 +203,16 @@ class PatchFeatureAggregator:
 
                 record["patch_id"] = patch_id
 
-                record["cell_count"] = (
-                    X.shape[0]
-                )
+                record["cell_count"] = n_cells
 
                 for dim in range(
-                    self.n_components
+                    safe_components
                 ):
 
                     vals = embedding[:, dim]
+
+                    if len(vals) == 0:
+                        continue
 
                     record[
                         f"umap_{dim+1}_mean"
