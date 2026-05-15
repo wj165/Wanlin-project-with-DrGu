@@ -13,7 +13,8 @@ class PatchFeatureAggregator:
         self,
         cell_feature_dir,
         output_csv,
-        n_components=10,
+        n_components=5,
+        n_neighbors=15,
         random_state=42
     ):
 
@@ -23,10 +24,12 @@ class PatchFeatureAggregator:
 
         self.n_components = n_components
 
+        self.n_neighbors = n_neighbors
+
         self.random_state = random_state
 
     # =====================================================
-    # load all cell csv
+    # load all cell feature csv
     # =====================================================
 
     def load_all_cells(self):
@@ -55,10 +58,6 @@ class PatchFeatureAggregator:
 
                 df = pd.read_csv(csv_path)
 
-                # -----------------------------------------
-                # skip empty dataframe
-                # -----------------------------------------
-
                 if df.shape[0] == 0:
                     continue
 
@@ -83,7 +82,7 @@ class PatchFeatureAggregator:
         return all_df
 
     # =====================================================
-    # aggregate
+    # GLOBAL UMAP aggregation
     # =====================================================
 
     def aggregate(self):
@@ -117,7 +116,61 @@ class PatchFeatureAggregator:
         )
 
         # =================================================
-        # group patches
+        # numeric matrix
+        # =================================================
+
+        X = df[
+            feature_cols
+        ].values
+
+        # =================================================
+        # clean nan / inf
+        # =================================================
+
+        X = np.nan_to_num(
+            X,
+            nan=0,
+            posinf=0,
+            neginf=0
+        )
+
+        print(
+            f"UMAP input matrix: {X.shape}"
+        )
+
+        # =================================================
+        # GLOBAL UMAP
+        # =================================================
+
+        reducer = UMAP(
+
+            n_components=self.n_components,
+
+            n_neighbors=self.n_neighbors,
+
+            random_state=self.random_state
+        )
+
+        embedding = reducer.fit_transform(X)
+
+        print(
+            f"UMAP embedding: {embedding.shape}"
+        )
+
+        # =================================================
+        # add embedding to dataframe
+        # =================================================
+
+        for dim in range(
+            self.n_components
+        ):
+
+            df[
+                f"umap_{dim+1}"
+            ] = embedding[:, dim]
+
+        # =================================================
+        # patch aggregation
         # =================================================
 
         grouped = df.groupby(
@@ -130,89 +183,21 @@ class PatchFeatureAggregator:
 
             try:
 
-                X = patch_df[
-                    feature_cols
-                ].values
-
-                # -----------------------------------------
-                # remove nan / inf
-                # -----------------------------------------
-
-                X = np.nan_to_num(
-                    X,
-                    nan=0,
-                    posinf=0,
-                    neginf=0
-                )
-
-                # -----------------------------------------
-                # skip tiny patches
-                # -----------------------------------------
-
-                n_cells = X.shape[0]
-
-                if n_cells < 5:
-                    continue
-
-                # -----------------------------------------
-                # safe umap params
-                # -----------------------------------------
-
-                safe_components = min(
-                    self.n_components,
-                    n_cells - 2
-                )
-
-                if safe_components < 2:
-                    continue
-
-                safe_neighbors = min(
-                    10,
-                    n_cells - 1
-                )
-
-                # -----------------------------------------
-                # UMAP
-                # -----------------------------------------
-
-                reducer = UMAP(
-
-                    n_components=safe_components,
-
-                    n_neighbors=safe_neighbors,
-
-                    random_state=self.random_state
-                )
-
-                embedding = reducer.fit_transform(
-                    X
-                )
-
-                # -----------------------------------------
-                # skip invalid embedding
-                # -----------------------------------------
-
-                if embedding.shape[0] == 0:
-                    continue
-
-                # -----------------------------------------
-                # aggregation
-                # -----------------------------------------
-
                 record = {}
 
                 record["patch_id"] = patch_id
 
-                record["cell_count"] = n_cells
+                record["cell_count"] = (
+                    patch_df.shape[0]
+                )
 
                 for dim in range(
-                    safe_components
+                    self.n_components
                 ):
 
-                    vals = embedding[:, dim]
-
-                    if len(vals) == 0:
-                        continue
+                    vals = patch_df[
+                        f"umap_{dim+1}"
+                    ].values
 
                     record[
                         f"umap_{dim+1}_mean"
