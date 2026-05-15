@@ -1,7 +1,7 @@
 
 # =========================================================
 # GU006 STRICT PATCH-LEVEL UMAP PIPELINE
-# Leakage-free version
+# Leakage-Free Aggregation
 # =========================================================
 
 import os
@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 
 from umap import UMAP
-
 from sklearn.model_selection import train_test_split
 
 
@@ -55,7 +54,7 @@ class StrictPatchUMAP:
         )
 
     # =====================================================
-    # load one group
+    # load one class
     # =====================================================
 
     def load_group(
@@ -94,7 +93,7 @@ class StrictPatchUMAP:
 
             except Exception as e:
 
-                print(f"ERROR loading {csv_path}")
+                print(f"ERROR loading: {csv_path}")
                 print(e)
 
         return pd.concat(
@@ -103,7 +102,7 @@ class StrictPatchUMAP:
         )
 
     # =====================================================
-    # load all
+    # load all cells
     # =====================================================
 
     def load_all(self):
@@ -140,15 +139,14 @@ class StrictPatchUMAP:
         return df
 
     # =====================================================
-    # patch split
+    # strict patch split
     # =====================================================
 
     def split_patches(self, df):
 
-        patch_df = df[[
-            "patch_id",
-            "label"
-        ]].drop_duplicates()
+        patch_df = df[
+            ["patch_id", "label"]
+        ].drop_duplicates()
 
         train_patch_ids, val_patch_ids = train_test_split(
 
@@ -203,6 +201,10 @@ class StrictPatchUMAP:
             if c not in metadata_cols
         ]
 
+        train_X = train_df[
+            feature_cols
+        ].values
+
         reducer = UMAP(
 
             n_components=self.n_components,
@@ -212,18 +214,16 @@ class StrictPatchUMAP:
             random_state=self.random_state
         )
 
-        train_X = train_df[
-            feature_cols
-        ].values
-
         reducer.fit(train_X)
 
-        print("UMAP fit complete")
+        print(
+            "UMAP fit complete"
+        )
 
         return reducer, feature_cols
 
     # =====================================================
-    # transform
+    # transform cells
     # =====================================================
 
     def transform_cells(
@@ -258,7 +258,7 @@ class StrictPatchUMAP:
         return df, embed_cols
 
     # =====================================================
-    # aggregate patch
+    # aggregate patches
     # =====================================================
 
     def aggregate_patches(
@@ -309,7 +309,7 @@ class StrictPatchUMAP:
         return pd.DataFrame(records)
 
     # =====================================================
-    # run
+    # run pipeline
     # =====================================================
 
     def run(self):
