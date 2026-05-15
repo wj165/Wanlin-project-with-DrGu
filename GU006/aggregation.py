@@ -1,7 +1,7 @@
 
 # =========================================================
-# GU006 STRICT PATCH-LEVEL UMAP PIPELINE
-# Leakage-Free Aggregation
+# GU006 STRICT CASE-LEVEL UMAP PIPELINE
+# LEAKAGE-FREE PATHOLOGY AI PIPELINE
 # =========================================================
 
 import os
@@ -13,7 +13,7 @@ from umap import UMAP
 from sklearn.model_selection import train_test_split
 
 
-class StrictPatchUMAP:
+class StrictCaseUMAP:
 
     def __init__(
 
@@ -139,33 +139,59 @@ class StrictPatchUMAP:
         return df
 
     # =====================================================
-    # strict patch split
+    # STRICT CASE-LEVEL SPLIT
     # =====================================================
 
-    def split_patches(self, df):
+    def split_cases(self, df):
 
-        patch_df = df[
-            ["patch_id", "label"]
+        df["case_id"] = (
+            df["patch_id"]
+            .str.split("_patch_")
+            .str[0]
+        )
+
+        case_df = df[
+            ["case_id", "label"]
         ].drop_duplicates()
 
-        train_patch_ids, val_patch_ids = train_test_split(
+        print(
+            f"Total unique cases: {len(case_df)}"
+        )
 
-            patch_df["patch_id"],
+        train_cases, val_cases = train_test_split(
+
+            case_df["case_id"],
 
             test_size=self.test_size,
 
             random_state=self.random_state,
 
-            stratify=patch_df["label"]
+            stratify=case_df["label"]
         )
 
         train_df = df[
-            df["patch_id"].isin(train_patch_ids)
+            df["case_id"].isin(train_cases)
         ].copy()
 
         val_df = df[
-            df["patch_id"].isin(val_patch_ids)
+            df["case_id"].isin(val_cases)
         ].copy()
+
+        overlap = set(train_cases).intersection(
+            set(val_cases)
+        )
+
+        print(
+            f"Overlap cases: {len(overlap)}"
+        )
+
+        print(
+            f"Train cases: {len(train_cases)}"
+        )
+
+        print(
+            f"Validation cases: {len(val_cases)}"
+        )
 
         print(
             f"Train cells: {train_df.shape}"
@@ -191,7 +217,9 @@ class StrictPatchUMAP:
 
             "label",
 
-            "class_name"
+            "class_name",
+
+            "case_id"
         ]
 
         feature_cols = [
@@ -280,6 +308,10 @@ class StrictPatchUMAP:
 
             record["patch_id"] = patch_id
 
+            record["case_id"] = patch_df[
+                "case_id"
+            ].iloc[0]
+
             record["label"] = patch_df[
                 "label"
             ].iloc[0]
@@ -309,14 +341,14 @@ class StrictPatchUMAP:
         return pd.DataFrame(records)
 
     # =====================================================
-    # run pipeline
+    # RUN FULL PIPELINE
     # =====================================================
 
     def run(self):
 
         df = self.load_all()
 
-        train_df, val_df = self.split_patches(df)
+        train_df, val_df = self.split_cases(df)
 
         reducer, feature_cols = self.fit_umap(
             train_df
